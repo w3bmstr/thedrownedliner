@@ -1165,21 +1165,29 @@ const buzz=pt=>{try{if(navigator.vibrate)navigator.vibrate(pt)}catch(e){}};
 // touch controls: a floating swim stick wherever the left thumb lands, direct drag-to-look and tap-to-fire on the right
 if(isCoarse()){
   const ui=$('touch-ui');
+  const fitUI=()=>{const v=window.visualViewport;if(!v)return;ui.style.left=v.offsetLeft+'px';ui.style.top=v.offsetTop+'px';ui.style.width=v.width+'px';ui.style.height=v.height+'px';ui.style.right='auto';ui.style.bottom='auto'};
+  fitUI();if(window.visualViewport)['resize','scroll'].forEach(n=>window.visualViewport.addEventListener(n,fitUI));addEventListener('resize',fitUI);addEventListener('orientationchange',()=>setTimeout(fitUI,250));
+  const loc=e=>{const r=ui.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
   const mkEl=css=>{const e=document.createElement('div');e.style.cssText=css;ui.appendChild(e);return e};
   const zMove=mkEl('position:absolute;left:0;top:calc(64px + env(safe-area-inset-top,0px));bottom:0;width:46%;pointer-events:auto;touch-action:none');
   const zLook=mkEl('position:absolute;right:0;top:calc(64px + env(safe-area-inset-top,0px));bottom:0;width:54%;pointer-events:auto;touch-action:none');
   ui.insertBefore(zLook,ui.firstChild);ui.insertBefore(zMove,ui.firstChild);
   const base=mkEl('position:absolute;width:116px;height:116px;margin:-58px 0 0 -58px;border-radius:50%;border:1.5px solid rgba(232,191,106,.5);background:radial-gradient(circle,rgba(232,191,106,.10),rgba(2,10,14,.25));display:none;pointer-events:none'),
         knob=mkEl('position:absolute;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(232,191,106,.5);border:1.5px solid rgba(255,230,160,.8);box-shadow:0 2px 14px rgba(0,0,0,.5);display:none;pointer-events:none');
+  const ring=mkEl('position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:116px;height:116px;border-radius:50%;border:1.5px dashed rgba(232,191,106,.3);pointer-events:none;color:rgba(232,191,106,.45);font:600 10px Cinzel,serif;letter-spacing:.2em;display:flex;align-items:center;justify-content:center');ring.textContent='MOVE';
+  const ringCenter=()=>{const r=ring.getBoundingClientRect(),u=ui.getBoundingClientRect();return[r.left-u.left+r.width/2,r.top-u.top+r.height/2]};
   const R=58;let mvId=null,ox=0,oy=0;
-  const stickEnd=()=>{mvId=null;joy.x=joy.y=0;bAuto=0;setBoost();base.style.display=knob.style.display='none'};
-  zMove.addEventListener('pointerdown',e=>{if(mvId!==null||!started||storyOpen||photoMode||menuOpen)return;e.preventDefault();try{zMove.setPointerCapture(e.pointerId)}catch(_){}
-    mvId=e.pointerId;ox=e.clientX;oy=e.clientY;base.style.left=ox+'px';base.style.top=oy+'px';knob.style.left=ox+'px';knob.style.top=oy+'px';base.style.display=knob.style.display='block'});
-  zMove.addEventListener('pointermove',e=>{if(e.pointerId!==mvId)return;e.preventDefault();let dx=e.clientX-ox,dy=e.clientY-oy;const len=Math.hypot(dx,dy);
-    if(len>R*1.7){const ex=len-R*1.7;ox+=dx/len*ex;oy+=dy/len*ex;dx=e.clientX-ox;dy=e.clientY-oy;base.style.left=ox+'px';base.style.top=oy+'px'}
+  const stickEnd=()=>{mvId=null;joy.x=joy.y=0;bAuto=0;setBoost();base.style.display=knob.style.display='none';ring.style.opacity='1'};
+  const stickUpdate=(px,py)=>{let dx=px-ox,dy=py-oy;const len=Math.hypot(dx,dy);
+    if(len>R*1.7){const ex=len-R*1.7;ox+=dx/len*ex;oy+=dy/len*ex;dx=px-ox;dy=py-oy;base.style.left=ox+'px';base.style.top=oy+'px'}
     const l2=Math.hypot(dx,dy),m=l2<9?0:Math.min(1,l2/R),k2=l2?Math.min(l2,R)/l2:0;knob.style.left=(ox+dx*k2)+'px';knob.style.top=(oy+dy*k2)+'px';
     const r=Math.pow(m,1.25);joy.x=l2?dx/l2*r:0;joy.y=l2?-dy/l2*r:0;
-    const wb=l2>R*1.35?1:0;if(wb!==bAuto){bAuto=wb;setBoost()}});
+    const wb=l2>R*1.35?1:0;if(wb!==bAuto){bAuto=wb;setBoost()}};
+  zMove.addEventListener('pointerdown',e=>{if(mvId!==null||!started||storyOpen||photoMode||menuOpen)return;e.preventDefault();try{zMove.setPointerCapture(e.pointerId)}catch(_){}
+    const [px,py]=loc(e),[cx,cy]=ringCenter();mvId=e.pointerId;
+    if(Math.hypot(px-cx,py-cy)<115){ox=cx;oy=cy}else{ox=px;oy=py}
+    base.style.left=ox+'px';base.style.top=oy+'px';knob.style.left=ox+'px';knob.style.top=oy+'px';base.style.display=knob.style.display='block';ring.style.opacity='0';stickUpdate(px,py)});
+  zMove.addEventListener('pointermove',e=>{if(e.pointerId!==mvId)return;e.preventDefault();const [px,py]=loc(e);stickUpdate(px,py)});
   ['pointerup','pointercancel','lostpointercapture'].forEach(n=>zMove.addEventListener(n,e=>{if(e.pointerId===mvId)stickEnd()}));
   let lkId=null,lx=0,ly=0,lt=0,lm=0;
   zLook.addEventListener('pointerdown',e=>{if(lkId!==null||!started||storyOpen||photoMode||menuOpen)return;e.preventDefault();try{zLook.setPointerCapture(e.pointerId)}catch(_){}lkId=e.pointerId;lx=e.clientX;ly=e.clientY;lt=performance.now();lm=0});
