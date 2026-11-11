@@ -151,6 +151,17 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 @media (max-width:640px){#menu-panel .grid2{grid-template-columns:1fr}}
 #crosshair.hit{opacity:1;width:30px;height:30px}
 #crosshair.hit::before,#crosshair.hit::after{background:#ff6a4a;box-shadow:0 0 10px #ff6a4a}
+#stick-move,#stick-look{display:none!important}
+#mob-btns{position:static;display:block;right:auto;bottom:auto}
+#mob-btns button{position:absolute;width:56px;height:56px;font-size:18px;background:rgba(2,10,14,.55)}
+#bu{right:calc(26px + env(safe-area-inset-right,0px));bottom:calc(178px + env(safe-area-inset-bottom,0px))}
+#bd{right:calc(100px + env(safe-area-inset-right,0px));bottom:calc(158px + env(safe-area-inset-bottom,0px))}
+#bb{right:calc(118px + env(safe-area-inset-right,0px));bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+#mob-flare{left:auto;right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));width:84px;height:84px;padding:0;border-radius:50%;font-size:12px;border-width:2px;background:rgba(40,14,4,.55);box-shadow:0 0 22px rgba(255,140,60,.35)}
+#mob-flare:active{background:rgba(255,140,60,.35)}
+#mob-sonar{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+#crosshair.lock{opacity:1;width:26px;height:26px}
+#crosshair.lock::before,#crosshair.lock::after{background:#ff9a4a;box-shadow:0 0 8px #ff7a30}
 </style>
 </head>
 <body>
@@ -362,7 +373,7 @@ const SPAWN=[62,6*DH+2.6,17];
 const dkOf=y=>Math.min(DK-1,Math.max(0,Math.floor(y/DH)));
 // plan: row 0 promenade strip (Boat Deck only), row 1 hull wall, rows 2-5 north rooms, row 6 doors, rows 7-9 main corridor, row 10 doors, rows 11-14 south rooms
 const room=(c,x0,x1,sd)=>{const m=Math.floor((x0+x1)/2);if(sd==='n'){rect(c,x0,2,x1,5);rect('.',m,6,m+1,6)}else{rect(c,x0,11,x1,14);rect('.',m,10,m+1,10)}};
-const hall=(c,x0,x1)=>rect(c,x0,2,x1,14);
+const HALLS=[];const hall=(c,x0,x1)=>{HALLS.push([c,x0,x1,DEC]);rect(c,x0,2,x1,14)};
 const cabins=(x0,x1,sd)=>{for(let x=x0;x+1<=x1;x+=3){if(sd==='n'){rect('c',x,2,x+1,5);rect('.',x,6,x+1,6)}else{rect('c',x,11,x+1,14);rect('.',x,10,x+1,10)}}};
 const vcol=(d0,d1,xa,za,xb,zb)=>{for(let k=d0;k<=d1;k++)for(let z=za;z<=zb;z++)for(let x=xa;x<=xb;x++){const i=k*N+z*W+x;hh[i]=k<d1?DH:DH+3;if(k>d0)vd[i]=1}};
 // a Grand Staircase: ring walkway, open well, stair flights rising east one deck at a time, balustrades
@@ -419,7 +430,7 @@ DEC=1;for(let z=4;z<=12;z++)if(z<7||z>9){rail(81,z,'x');rail(88,z,'x')}for(let x
 DEC=0;BR.forEach(([a,b])=>[a+1,a+2,b-2,b-1].forEach(x=>[3,4,5,11,12,13].forEach(z=>S(x,z,5,0x5a5048))));
 // ---- cabins: tint by class, then a bunk against the back wall
 for(let k=0;k<DK;k++)for(let z=0;z<Hh;z++)for(let x=0;x<W;x++){const i=k*N+z*W+x;if(ch[i]==='c')tn[i]=k>=4?0x8a5a58:k>=2?0x6a6a52:0x5a5a58}
-for(let k=0;k<DK;k++){DEC=k;for(let z=0;z<Hh;z++)for(let x=0;x<W;x++)if(ch[k*N+z*W+x]==='c'&&(z===2||z===14))S(x,z,0.6,k>=4?0x7a3a3a:k>=2?0x5a4a3a:0x4a4038)}
+for(let k=0;k<DK;k++){DEC=k;for(let z=0;z<Hh;z++)for(let x=0;x<W;x++){const i=k*N+z*W+x;if(ch[i]==='c'){if(z===2||z===14)S(x,z,0.6,k>=4?0x7a3a3a:k>=2?0x5a4a3a:0x4a4038);else if((z===3||z===12)&&!ch[i-1])S(x,z,2.0,0x6a4a30)}}}
 // ---- room furniture
 DEC=2;[66,70,74,78].forEach(x=>[5,11].forEach(z=>S2(x,z,0.8,0x5a4430)));[68,76].forEach(x=>[4,12].forEach(z=>S(x,z,8,0x7a6a58)));[15,18,21].forEach(x=>S2(x,14,0.6,0x6a5a6a));
 DEC=5;[58,62].forEach(x=>[4,12].forEach(z=>S2(x,z,0.7,0x6a3a4a)));for(let x=30;x<=41;x++)S(x,2,2.4,0x4a3a2a);[83,87,91].forEach(x=>S2(x,8,0.8,0x5a4430));
@@ -562,6 +573,33 @@ const dm=new T.Object3D();
   {const gm=new T.MeshStandardMaterial({color:0xffe6b0,emissive:0xffc870,emissiveIntensity:1.4,roughness:0.4}),cpm=new T.MeshStandardMaterial({color:0x6a5230,metalness:0.7,roughness:0.4});
    for(let d=0;d<DK;d++)[64,120,176,208].forEach(x=>{const gp=new T.Group(),gl2=new T.Mesh(new T.SphereGeometry(0.24,12,10),gm),cp2=new T.Mesh(new T.CylinderGeometry(0.12,0.2,0.35,10),cpm);
      cp2.position.y=0.3;gp.add(gl2);gp.add(cp2);const sp=glow(0xffc870,3.2);sp.material.opacity=0.55;gp.add(sp);gp.position.set(x,d*DH+4.7,17);sc.add(gp)})}
+  // ---- room dressing: chandeliers in the grand rooms, fireplaces, the bridge, Marconi set, palms, gymnasium, pool water
+  {
+    const gold=new T.MeshStandardMaterial({color:0xd0a850,metalness:0.6,roughness:0.35,emissive:0x2a1c08}),bulb=new T.MeshStandardMaterial({color:0xffeec0,emissive:0xffc870,emissiveIntensity:1.6}),
+      dark=new T.MeshStandardMaterial({color:0x2a2622,roughness:0.6}),brass=new T.MeshStandardMaterial({color:0xb08a40,metalness:0.7,roughness:0.35,emissive:0x1a1208}),
+      green=new T.MeshStandardMaterial({color:0x2f6a3a,roughness:0.8,emissive:0x07140a}),wood2=new T.MeshStandardMaterial({color:0x5a4430,roughness:0.7}),fire=new T.MeshBasicMaterial({color:0xff8a3a});
+    const g1=new T.TorusGeometry(1.1,0.05,8,28),g2=new T.TorusGeometry(0.65,0.045,8,24),g3=new T.TorusGeometry(1.1,0.1,6,16),gr=new T.CylinderGeometry(0.05,0.05,1.4,6);
+    const chand=(x,y,z)=>{const q=new T.Group(),a1=new T.Mesh(g1,gold),a2=new T.Mesh(g2,gold),b1=new T.Mesh(g3,bulb),rod=new T.Mesh(gr,gold);
+      a1.rotation.x=a2.rotation.x=b1.rotation.x=Math.PI/2;a2.position.y=0.55;b1.scale.set(1,1,0.3);b1.position.y=-0.05;rod.position.y=1.2;q.add(a1,a2,b1,rod);
+      const sp=glow(0xffd890,5.5);sp.material.opacity=0.6;sp.position.y=0.1;q.add(sp);q.position.set(x,y,z);sc.add(q)};
+    HALLS.forEach(([c,x0,x1,k])=>{if(!'DLRSAFYWdg'.includes(c))return;const n=Math.max(1,Math.round((x1-x0+1)/9));
+      for(let i=0;i<n;i++){const cx=(x0+(x1-x0+1)*(i+0.5)/n)*CS;[11,23].forEach(z=>chand(cx,k*DH+6.7,z))}});
+    const fireplace=(x,y0,z)=>{const mt=new T.Mesh(new T.BoxGeometry(3.4,2.4,0.7),dark);mt.position.set(x,y0+1.2,z+0.35);sc.add(mt);
+      const op=new T.Mesh(new T.BoxGeometry(1.8,1.0,0.2),fire);op.position.set(x,y0+0.65,z+0.72);sc.add(op);
+      const sp=glow(0xff8a3a,3.2);sp.position.set(x,y0+0.75,z+1.0);sp.material.opacity=0.7;sc.add(sp);lightAt(0xff8a3a,1.8,14,1.4,x,y0+1.0,z+2)};
+    fireplace(124,5*DH,4.05);fireplace(177,5*DH,4.05);
+    {const y0=6*DH,wheel=new T.Mesh(new T.TorusGeometry(0.75,0.05,8,28),wood2);wheel.position.set(63,y0+2.0,8.4);sc.add(wheel);
+     for(let i=0;i<4;i++){const sp=new T.Mesh(new T.BoxGeometry(1.5,0.06,0.06),wood2);sp.position.set(63,y0+2.0,8.4);sp.rotation.z=i*Math.PI/4;sc.add(sp)}
+     [60,66].forEach(x=>{const tp=new T.Mesh(new T.CylinderGeometry(0.2,0.26,1.2,12),brass);tp.position.set(x,y0+1.7,8.6);sc.add(tp);const cap=new T.Mesh(new T.CylinderGeometry(0.24,0.24,0.08,16),bulb);cap.position.set(x,y0+2.34,8.6);sc.add(cap)});
+     const bn=new T.Mesh(new T.CylinderGeometry(0.3,0.36,1.1,12),brass);bn.position.set(63,y0+0.55,11);sc.add(bn);lightAt(0xffd890,1.0,10,1.6,63,y0+2.4,10);
+     const rd=new T.Mesh(new T.BoxGeometry(1.2,0.5,0.6),dark);rd.position.set(82,y0+1.25,8);sc.add(rd);const dl=glow(0x88ddff,1.4);dl.position.set(82,y0+1.5,8.35);sc.add(dl);
+     [118,124,130].forEach(x=>{const rw=new T.Mesh(new T.BoxGeometry(1.8,0.22,0.5),wood2);rw.position.set(x,y0+0.5,6.4);sc.add(rw);const st=new T.Mesh(new T.BoxGeometry(0.4,0.12,0.4),dark);st.position.set(x+0.3,y0+0.7,6.4);sc.add(st)});
+     const bag=new T.Mesh(new T.CylinderGeometry(0.3,0.3,1.1,12),dark);bag.position.set(126,y0+3.2,26);sc.add(bag);const chn=new T.Mesh(new T.CylinderGeometry(0.02,0.02,1.8,4),brass);chn.position.set(126,y0+4.35,26);sc.add(chn)}
+    const palm=(x,y0,z)=>{const tr=new T.Mesh(new T.CylinderGeometry(0.1,0.16,1.7,8),wood2);tr.position.set(x,y0+0.85,z);sc.add(tr);
+      for(let i=0;i<6;i++){const a=i/6*6.283,lf=new T.Mesh(new T.ConeGeometry(0.22,1.7,5),green);lf.position.set(x+Math.cos(a)*0.55,y0+1.9,z+Math.sin(a)*0.55);lf.rotation.z=Math.cos(a)*1.0;lf.rotation.x=-Math.sin(a)*1.0;sc.add(lf)}};
+    [198,204].forEach(x=>[6.5,27.5].forEach(z=>palm(x,5*DH,z)));
+    const wt=new T.Mesh(new T.PlaneGeometry(13,25),new T.MeshBasicMaterial({color:0x2a7aa0,transparent:true,opacity:0.22,blending:T.AdditiveBlending,depthWrite:false,fog:false,side:T.DoubleSide}));wt.rotation.x=-Math.PI/2;wt.position.set(37,1.7,17);sc.add(wt)
+  }
   [64,120,176,208].forEach(x=>{lightAt(0xb8d8e8,0.8,15,1.6,x,6*DH+2.4,1);lightAt(0xb8d8e8,0.8,15,1.6,x,6*DH+2.4,33)});lightAt(0xb8d8e8,1,18,1.5,30,4*DH+2.4,17);lightAt(0xb8d8e8,1,18,1.5,236,4*DH+2.4,17);
   // twenty lifeboats hang in their davits above the promenades
   {const bt=[];[32,40,48,56,64,72,80,88,96,104].forEach(x=>{bt.push([x*2,6*DH+5.4,1]);bt.push([x*2,6*DH+5.4,33])});
